@@ -1,0 +1,38 @@
+# See https://peps.python.org/pep-0621/
+
+[project]
+name = 'Panthyr_Insys_MRO'
+readme = 'README.md'
+version = '0.1.0-beta'
+description = 'Utilities to query status updates from the InSys MRO-200 router.'
+authors = [{ email = 'dieterv@vliz.be' }, { name = 'Dieter Vansteenwegen' }]
+classifiers = [
+    'Development Status :: 4 - Beta',
+    'Programming Language :: Python',
+]
+
+[project.urls]
+Homepage = 'https://waterhypernet.org/equipment/'
+Repository = 'https://github.com/panthyr/'
+Changelog = './CHANGELOG.md'
+
+
+[build-system]
+requires = ['setuptools', 'setuptools-scm']
+# build-backend = 'setuptools.build.meta'     # Generates 'ModuleNotFoundError: No module named 'setuptools.build'
+
+[tool.setuptools.packages.find]
+where = ['src']                 # list of folders that contain the packages (['.'] by default)
+include = ['panthyr_insys_mro']
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+# tests = ["B201", "B301"]
+# skips = ["B101", "B601"]
+
+[tool.yapf]
+based_on_style = 'pep8'
+column_limit = 99
+indent_width = 4
+spaces_before_comment = 2
+split_before_logical_operator = true
