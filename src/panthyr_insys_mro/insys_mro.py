@@ -7,13 +7,12 @@ __email__ = 'dieter.vansteenwegen@vliz.be'
 __project__ = 'Panthyr'
 __project_link__ = 'https://waterhypernet.org/equipment/'
 
-import time
 import requests
 import logging
 from typing import Dict, Union
+import tenacity
 
-LOG_FMT = '|%(asctime)s|%(levelname)-7.7s|%(module)-15.15s|%(lineno)-0.43d|%(funcName)s|%(message)s|'
-
+LOG_FMT = '|%(asctime)s|%(levelname)-7.7s|%(module)-15.15s|%(lineno)-0.4d|%(funcName)-10.10s|%(message)s|'
 log = logging.getLogger(__name__)
 
 
@@ -27,6 +26,10 @@ class IncorrectCredentialsError(MROError):
 
 class NoPermissionError(MROError):
     """The user is authenticated, but has no rights to perform this action/operation."""
+
+
+class InvalidReplyError(MROError):
+    """Got an invalid reply from the device."""
 
 
 class InsysMRO():
@@ -55,12 +58,20 @@ class InsysMRO():
         # sourcery skip: raise-from-previous-error
         login_url = f'{self.url_base}/auth/login'
         login_data = {'username': username, 'password': password}
+        # try:
         auth_result = requests.post(login_url, json=login_data)
+        # except requests.exceptions.ConnectionError:
+
         if auth_result.status_code == 401:
             raise IncorrectCredentialsError
         access_token = auth_result.json()['access']
         self.header_auth = {'Authorization': f'Bearer {access_token}'}
 
+    @tenacity.retry(
+        reraise=True,
+        stop=tenacity.stop_after_attempt(2),
+        after=tenacity.after_log(log, logging.WARNING),
+    )
     def _get_from_url(self, url: str) -> Dict:
         """Helper method to perform a GET request.
 
@@ -72,11 +83,23 @@ class InsysMRO():
         """
         # TODO: exception for invalid URL or auth
         target_url = f'{self.url_base}{url}'
-        return requests.get(target_url, headers=self.header_auth).json()
+        rtn = requests.get(target_url, headers=self.header_auth)
+        if rtn.status_code != 200:
+            log.warning(f'Received code {rtn.status_code} for request to {url}.')
+            raise InvalidReplyError
+        return rtn.json()
 
+    @tenacity.retry(
+        reraise=True,
+        stop=tenacity.stop_after_attempt(2),
+        after=tenacity.after_log(log, logging.WARNING),
+    )
     def _put_to_url(self, url: str, json: Union[dict, None] = None) -> requests.Response:
         target_url = f'{self.url_base}{url}'
-        return requests.put(target_url, json=json, headers=self.header_auth)
+        rtn = requests.put(target_url, json=json, headers=self.header_auth)
+        if rtn.status_code != 200:
+            log.warning(f'Received code {rtn.status_code} for put to {url}.')
+        return rtn
 
     def _post_to_url(self, url: str, json: Union[dict, None] = None) -> requests.Response:
         """Helper method to perform a POST request.
@@ -90,7 +113,10 @@ class InsysMRO():
         """
         # TODO: exception for invalid URL or auth
         target_url = f'{self.url_base}{url}'
-        return requests.post(target_url, json=json, headers=self.header_auth)
+        rtn = requests.post(target_url, json=json, headers=self.header_auth)
+        if rtn.status_code != 200:
+            log.warning(f'Received code {rtn.status_code} for post to {url}.')
+        return rtn
 
     def _manual_action(self, type: str, options: Union[dict, None] = None) -> requests.Response:
         """Helper method to perform a manual action (POST).
@@ -192,7 +218,13 @@ class InsysMRO():
             ['input_voltage_1', 'input_voltage'],
         ]
         cellular_info_raw = self._get_from_url(url='/status/lte_serial2')['status']['unique']
-        return {field[1]: cellular_info_raw[field[0]] for field in field_mapping}
+        rtn = {}
+        try:
+            rtn = {field[1]: cellular_info_raw[field[0]] for field in field_mapping}
+        except KeyError as e:
+            log.error(f'KeyError: {e}, {cellular_info_raw=}')
+            rtn = {}
+        return rtn
 
     def _change_lte2_state(self, state: str) -> bool:
         options = {'name': 'lte2', 'state_change': state}
@@ -200,8 +232,7 @@ class InsysMRO():
         if type(response.status_code) != int:
             raise TypeError(
                 'Status code not int: '
-                f'{response.status_code}, type: {type(response.status_code)}',
-            )
+                f'{response.status_code}, type: {type(response.status_code)}', )
         return response.status_code == 201
 
     def power_cycle_lte(self) -> bool:

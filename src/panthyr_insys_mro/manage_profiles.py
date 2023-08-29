@@ -11,24 +11,11 @@ import argparse
 import logging
 import sys
 import time
+import requests
 
-from insys_mro import InsysMRO
+from panthyr_insys_mro.insys_mro import InsysMRO
 
-LOG_FMT = '|%(asctime)s|%(levelname)-7.7s|%(module)-15.15s|%(lineno)-0.4d|%(funcName)s|%(message)s|'
-
-# class ConnectionKeeper:
-
-#     def __init__(self, username: str, password: str, ip: str = '192.168.100.100'):
-#         self._username = username
-#         self._password = password
-#         self._ip = ip
-
-#     def connect(self):
-#         self._mro = InsysMRO(
-#             username=self._username,
-#             password=self._password,
-#             ip=self._ip,
-#         )
+LOG_FMT = '|%(asctime)s|%(levelname)-7.7s|%(module)-15.15s|%(lineno)-0.4d|%(funcName)-15.15s|%(message)s|'
 
 
 def _get_arguments() -> argparse.Namespace:
@@ -44,7 +31,12 @@ def _get_arguments() -> argparse.Namespace:
         help='Username to use for logging in.',
     )
     parser.add_argument('password', type=str, help='Password to log in.')
-    parser.add_argument('maximum_minutes_offline', type=int, default=10)
+    parser.add_argument(
+        'maximum_minutes_offline',
+        help='Maximum number of minutes being offline before moving to next profile',
+        type=int,
+        default=10,
+    )
     return parser.parse_args()
 
 
@@ -74,28 +66,35 @@ def goto_next_profile(mro: InsysMRO) -> str:
     return next_profile
 
 
-if __name__ == '__main__':
+def main():
     args = _get_arguments()
-    mro = InsysMRO(username=args.username, password=args.password, ip=args.ip)
+    log = _init_logging()
+    try:
+        mro = InsysMRO(username=args.username, password=args.password, ip=args.ip)
+    except requests.exceptions.ConnectionError:
+        log.error(f'Could not connect to MRO at IP {args.ip}')
+        sys.exit()
     max_minutes_offline = args.maximum_minutes_offline
     offline_minutes = 0
-    log = _init_logging()
 
     while True:
         cell_info = mro.get_cellular_info()
         curr_profile = mro.current_profile()
-        log.info(f'Profile: {curr_profile}, Cellular: {cell_info}')
-
-        if cell_info['state'] != 'Online':
-            log.warning(
-                f'Cellular is {cell_info["state"]} with profile {curr_profile}, '
-                f'minutes offline: {offline_minutes}',
-            )
+        connection_state = cell_info.get('state', 'Not in returned dict')
+        if connection_state != 'Online':
             offline_minutes += 2
+            log.warning(
+                f'OFFLINE. Cellular state: [{cell_info}], with profile [{curr_profile}], '
+                f'minutes offline: {offline_minutes}', )
             if offline_minutes >= max_minutes_offline:
                 offline_minutes = 0
                 new_profile = goto_next_profile(mro)
                 log.info(f'Changed to profile {new_profile}')
         else:
             offline_minutes = 0
+            log.info(f'ONLINE. Cellular state: [{cell_info}], using profile [{curr_profile}]')
         time.sleep(120)
+
+
+if __name__ == '__main__':
+    main()

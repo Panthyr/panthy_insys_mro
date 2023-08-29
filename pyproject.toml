@@ -10,6 +10,10 @@ classifiers = [
     'Development Status :: 4 - Beta',
     'Programming Language :: Python',
 ]
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
 
 [project.urls]
 Homepage = 'https://waterhypernet.org/equipment/'
@@ -24,6 +28,9 @@ requires = ['setuptools', 'setuptools-scm']
 [tool.setuptools.packages.find]
 where = ['src']                 # list of folders that contain the packages (['.'] by default)
 include = ['panthyr_insys_mro']
+
+[project.scripts]
+manage_mro_profiles = "panthyr_insys_mro.manage_profiles:main"
 
 [tool.bandit]
 exclude_dirs = ["tests"]
