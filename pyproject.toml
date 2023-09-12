@@ -30,7 +30,7 @@ where = ['src']                 # list of folders that contain the packages (['.
 include = ['panthyr_insys_mro']
 
 [project.scripts]
-manage_mro_profiles = "panthyr_insys_mro.manage_profiles:main"
+manage_mro_profiles = "panthyr_insys_mro.manage_modem_modes:main"
 
 [tool.bandit]
 exclude_dirs = ["tests"]

@@ -245,7 +245,7 @@ class InsysMRO():
         try:
             rtn = {field[1]: cellular_info_raw[field[0]] for field in field_mapping}
         except KeyError as e:
-            log.error(f'KeyError: {e}, {cellular_info_raw=}')
+            log.error(f'KeyError: {e}, {cellular_info_raw}')
             rtn = {}
         return rtn
 
