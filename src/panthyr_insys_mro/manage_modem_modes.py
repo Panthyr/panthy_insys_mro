@@ -15,7 +15,7 @@ import time
 import requests
 
 from panthyr_insys_mro.insys_mro import InsysMRO
-from src.panthyr_insys_mro.insys_mro import MROError
+from panthyr_insys_mro.insys_mro import MROError
 
 LOG_FMT = '|%(asctime)s|%(levelname)-7.7s|%(module)-15.15s|%(lineno)-0.4d|%(funcName)-15.15s|%(message)s|'
 TIME_FMT = '%Y-%m-%d %H:%M:%S.%f'
