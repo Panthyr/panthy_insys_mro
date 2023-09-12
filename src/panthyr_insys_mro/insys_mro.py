@@ -9,7 +9,7 @@ __project_link__ = 'https://waterhypernet.org/equipment/'
 
 import requests
 import logging
-from typing import Dict, Union
+from typing import Dict, List, Union
 import tenacity
 
 LOG_FMT = '|%(asctime)s|%(levelname)-7.7s|%(module)-15.15s|%(lineno)-0.4d|%(funcName)-10.10s|%(message)s|'
@@ -274,7 +274,7 @@ class InsysMRO():
         turn_off = self._change_lte2_state(state='turn_off')
         return bool(turn_off and self._change_lte2_state(state='turn_on'))
 
-    def get_profiles(self) -> list[dict[str, bool]]:
+    def get_profiles(self) -> 'list[dict[str, bool]]':
         """Get a list of the profiles available on the device.
 
         Returns a list with a dict for each profile.
