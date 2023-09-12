@@ -104,14 +104,16 @@ def main():
                 f'minutes offline: {offline_minutes}', )
             if offline_minutes >= max_minutes_offline:
                 offline_minutes = 0
-                new_profile = goto_next_modem_mode(mro, curr_modem_mode)
-                log.info(f'Changed to profile {new_profile}')
+                try:
+                    new_profile = goto_next_modem_mode(mro, curr_modem_mode)
+                    log.info(f'Changed to profile {new_profile}')
+                except KeyError:
+                    log.info('Changing modes not supported.')
             offline_minutes += 2
         else:
             offline_minutes = 0
             log.info(
-                f'ONLINE. Cellular state: [{cell_info}], using modem mode [{curr_modem_mode}]',
-            )
+                f'ONLINE. Cellular state: [{cell_info}], using modem mode [{curr_modem_mode}]', )
         dt = datetime.datetime.now(datetime.timezone.utc).strftime(TIME_FMT)
         with open('log.csv', 'a') as outp:
             outp.write(f'{dt};{connection_state};{curr_modem_mode};{cell_info}')

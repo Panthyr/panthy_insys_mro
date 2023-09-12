@@ -337,11 +337,17 @@ class InsysMRO():
             * 'att': Specific for AT&T
             * 'verizon': Specific for Verizon
 
+        If used on a MRO-200 v1.0 (no international cellular mode), it will return 'n/a'.
+
         Returns:
             str: current configured mode.
         """
         rtn = self._get_from_url(url='/configuration/interfaces/lte2')
-        return rtn['config']['unique']['modem_mode']
+        try:
+            modem_mode = rtn['config']['unique']['modem_mode']
+        except KeyError:
+            modem_mode = 'n/a'
+        return modem_mode
 
     def set_modem_mode(self, mode: str) -> bool:
         """Set the current modem mode.
@@ -356,6 +362,7 @@ class InsysMRO():
 
         Raises:
             InvalidCommandError: if an invalid mode is given.
+            KeyError: if hw in device does not support modem modes (MRO200 v1.0 EU)
 
         Returns:
             bool: True if PUT command returned with status code 200
@@ -364,6 +371,8 @@ class InsysMRO():
         if mode.lower() not in valid_modes:
             raise InvalidCommandError(f'Mode {mode} is not valid. Use one of: {valid_modes}.')
         config = self._get_from_url(url='/configuration/interfaces/lte2')
+        if 'modem_mode' not in config['config']['unique'].keys():
+            raise KeyError
         config['config']['unique']['modem_mode'] = mode
         config['profile'] = {'name': 'Profile', 'activate': '1'}
         rtn = self._put_to_url(url='/configuration/interfaces/lte2', json=config)
