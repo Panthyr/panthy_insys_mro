@@ -122,6 +122,7 @@ def main():
             offline_minutes = 0
             log.info(
                 f'ONLINE. Cellular state: [{cell_info}], using modem mode [{curr_modem_mode}]', )
+        mro.logout()
         dt = datetime.datetime.now(datetime.timezone.utc).strftime(TIME_FMT)
         with open('log.csv', 'a') as outp:
             outp.write(f'{dt};{connection_state};{curr_modem_mode};{cell_info}')

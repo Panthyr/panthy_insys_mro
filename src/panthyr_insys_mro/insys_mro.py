@@ -47,6 +47,10 @@ class InsysMRO():
         self.url_base = f'http://{ip}:80/api/v2_0'
         self._login(username=username, password=password)
 
+    def logout(self) -> bool:
+        rtn = self._post_to_url('/auth/logout')
+        return rtn.status_code == 200
+
     def _login(self, username: str, password: str) -> None:
         """Log in to the router.
 
