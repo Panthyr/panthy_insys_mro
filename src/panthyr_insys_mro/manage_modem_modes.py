@@ -15,6 +15,7 @@ import time
 import requests
 
 from panthyr_insys_mro.insys_mro import InsysMRO
+from src.panthyr_insys_mro.insys_mro import MROError
 
 LOG_FMT = '|%(asctime)s|%(levelname)-7.7s|%(module)-15.15s|%(lineno)-0.4d|%(funcName)-15.15s|%(message)s|'
 TIME_FMT = '%Y-%m-%d %H:%M:%S.%f'
@@ -85,19 +86,26 @@ def goto_next_modem_mode(mro: InsysMRO, current_modem_mode: str) -> str:
 def main():
     args = _get_arguments()
     log = _init_logging()
-    try:
-        mro = InsysMRO(username=args.username, password=args.password, ip=args.ip)
-    except requests.exceptions.ConnectionError:
-        log.error(f'Could not connect to MRO at IP {args.ip}')
-        sys.exit()
     max_minutes_offline = args.maximum_minutes_offline
     offline_minutes = 0
 
     while True:
-        cell_info = mro.get_cellular_info()
-        # curr_profile = mro.current_profile()
-        curr_modem_mode = mro.current_modem_mode()
-        connection_state = cell_info.get('state', 'Not in returned dict')
+        try:
+            mro = InsysMRO(username=args.username, password=args.password, ip=args.ip)
+        except requests.exceptions.ConnectionError:
+            log.error(f'Could not connect to MRO at IP {args.ip}')
+            time.sleep(10)
+            continue
+
+        try:
+            cell_info = mro.get_cellular_info()
+            # curr_profile = mro.current_profile()
+            curr_modem_mode = mro.current_modem_mode()
+            connection_state = cell_info.get('state', 'Not in returned dict')
+        except MROError:
+            time.sleep(10)
+            continue
+
         if connection_state != 'Online':
             log.warning(
                 f'OFFLINE. Cellular state: [{cell_info}], with mode [{curr_modem_mode}], '
