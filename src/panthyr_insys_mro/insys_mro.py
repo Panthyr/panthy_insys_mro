@@ -32,6 +32,10 @@ class InvalidReplyError(MROError):
     """Got an invalid reply from the device."""
 
 
+class InvalidCommandError(MROError):
+    """Trying to send an invalid command/option."""
+
+
 class InsysMRO():
 
     def __init__(  #nosec B107
@@ -78,6 +82,9 @@ class InsysMRO():
         Args:
             url (str): partial url to be added to f'http://{ip}:80/api/v2_0'
 
+        Raises:
+           InvalidReplyError: if the returned statuscode is unequal to 200.
+
         Returns:
             Dict: data from device
         """
@@ -95,10 +102,25 @@ class InsysMRO():
         after=tenacity.after_log(log, logging.WARNING),
     )
     def _put_to_url(self, url: str, json: Union[dict, None] = None) -> requests.Response:
+        """Helper method to perform a PUT request.
+
+
+        Args:
+            url (str): partial url to be added to f'http://{ip}:80/api/v2_0'
+            json (Union[dict, None], optional): Additional data to be used in the PUT command.
+                                                Defaults to None.
+
+        Raises:
+            InvalidReplyError: if return status code does not equal 200.
+
+        Returns:
+            requests.Response: Response from device
+        """
         target_url = f'{self.url_base}{url}'
         rtn = requests.put(target_url, json=json, headers=self.header_auth)
         if rtn.status_code != 200:
             log.warning(f'Received code {rtn.status_code} for put to {url}.')
+            raise InvalidReplyError
         return rtn
 
     def _post_to_url(self, url: str, json: Union[dict, None] = None) -> requests.Response:
@@ -108,14 +130,21 @@ class InsysMRO():
             url (str): partial url to be added to f'http://{ip}:80/api/v2_0'
             json (Union[dict, None], optional): JSON data to post. Defaults to None.
 
+        Raises:
+            NoPermissionError: if the current credentials do not allow the requested action.
+            InvalidReplyError: if return status code does not equal 200 (or 403).
+
         Returns:
             requests.Response: Response from the request
         """
         # TODO: exception for invalid URL or auth
         target_url = f'{self.url_base}{url}'
         rtn = requests.post(target_url, json=json, headers=self.header_auth)
+        if rtn.status_code == 403:
+            raise NoPermissionError
         if rtn.status_code != 200:
             log.warning(f'Received code {rtn.status_code} for post to {url}.')
+            raise InvalidReplyError
         return rtn
 
     def _manual_action(self, type: str, options: Union[dict, None] = None) -> requests.Response:
@@ -128,9 +157,6 @@ class InsysMRO():
 
         Returns:
             requests.Response: Response from the POST request.
-
-        Raises:
-            NoPermissionError: if the user has no rights to perform the requested action.
         """
         # TODO: exception for operation or auth
         if options is None:
@@ -142,10 +168,7 @@ class InsysMRO():
                 'options': options,
             },
         }
-        rtn = self._post_to_url(url='/operation', json=json)
-        if rtn.status_code == 403:
-            raise NoPermissionError
-        return rtn
+        return self._post_to_url(url='/operation', json=json)
 
     def force_ntp_sync(self) -> bool:
         """Force an NTP sync.
@@ -159,7 +182,7 @@ class InsysMRO():
             rtn = self._manual_action(type='ntp_sync', options={})
         except NoPermissionError:
             log.error('User has no permission to force an NTP update.')
-            raise
+            return False
         return rtn.status_code == 201
 
     def _device_info(self) -> Dict:
@@ -227,12 +250,16 @@ class InsysMRO():
         return rtn
 
     def _change_lte2_state(self, state: str) -> bool:
+        """Change the power or connection state of the LTE2 device.
+
+        Args:
+            state (str): Can be "log_out", "turn_off", "log_in" or "turn_on"
+
+        Returns:
+            bool: True if the action/command is confirmed by the device.
+        """
         options = {'name': 'lte2', 'state_change': state}
         response = self._manual_action(type='modem_state', options=options)
-        if type(response.status_code) != int:
-            raise TypeError(
-                'Status code not int: '
-                f'{response.status_code}, type: {type(response.status_code)}', )
         return response.status_code == 201
 
     def power_cycle_lte(self) -> bool:
@@ -263,6 +290,7 @@ class InsysMRO():
                 'last_activated': False,
                 'modified': False
             }]
+
         Returns:
             list[dict[str,bool]]: dict for each profile
                                 containing 'name', 'last_activated' and 'modified'
@@ -271,13 +299,16 @@ class InsysMRO():
         return rtn['profiles']
 
     def current_profile(self) -> str:
+        """Get the name of the current profile on the device.
+
+        Returns:
+            str: Name of the current (running) profile.
+        """
         all_profiles = self.get_profiles()
-        rtn = ''
-        for profile in all_profiles:
-            if profile['last_activated']:
-                rtn = profile['name']
-                continue
-        return rtn
+        return next(
+            (profile['name'] for profile in all_profiles if profile['last_activated']),
+            '',
+        )
 
     def activate_profile(self, profilename: str) -> bool:
         """Activate given profile.
@@ -297,3 +328,43 @@ class InsysMRO():
         except Exception as e:
             log.exception(e)
         return success
+
+    def current_modem_mode(self) -> str:
+        """Get the current modem mode.
+
+        Modem mode configures the cellular modem for use in the USA. Possible values:
+            * 'normal': Normal mode
+            * 'att': Specific for AT&T
+            * 'verizon': Specific for Verizon
+
+        Returns:
+            str: current configured mode.
+        """
+        rtn = self._get_from_url(url='/configuration/interfaces/lte2')
+        return rtn['config']['unique']['modem_mode']
+
+    def set_modem_mode(self, mode: str) -> bool:
+        """Set the current modem mode.
+
+        Modem mode configures the cellular modem for use in the USA. Possible values:
+            * 'normal': Normal mode
+            * 'att': Specific for AT&T
+            * 'verizon': Specific for Verizon
+
+        Args:
+            mode (str): one of 'normal', 'att' or 'verizon'.
+
+        Raises:
+            InvalidCommandError: if an invalid mode is given.
+
+        Returns:
+            bool: True if PUT command returned with status code 200
+        """
+        valid_modes = ['normal', 'att', 'verizon']
+        if mode.lower() not in valid_modes:
+            raise InvalidCommandError(f'Mode {mode} is not valid. Use one of: {valid_modes}.')
+        config = self._get_from_url(url='/configuration/interfaces/lte2')
+        config['config']['unique']['modem_mode'] = mode
+        config['profile'] = {'name': 'Profile', 'activate': '1'}
+        rtn = self._put_to_url(url='/configuration/interfaces/lte2', json=config)
+        return rtn.status_code == 200

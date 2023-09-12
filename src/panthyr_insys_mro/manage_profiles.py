@@ -8,6 +8,7 @@ __project__ = 'Panthyr'
 __project_link__ = 'https://waterhypernet.org/equipment/'
 
 import argparse
+import datetime
 import logging
 import sys
 import time
@@ -16,6 +17,7 @@ import requests
 from panthyr_insys_mro.insys_mro import InsysMRO
 
 LOG_FMT = '|%(asctime)s|%(levelname)-7.7s|%(module)-15.15s|%(lineno)-0.4d|%(funcName)-15.15s|%(message)s|'
+TIME_FMT = '%Y-%m-%d %H:%M:%S.%f'
 
 
 def _get_arguments() -> argparse.Namespace:
@@ -33,7 +35,7 @@ def _get_arguments() -> argparse.Namespace:
     parser.add_argument('password', type=str, help='Password to log in.')
     parser.add_argument(
         'maximum_minutes_offline',
-        help='Maximum number of minutes being offline before moving to next profile',
+        help='Maximum number of minutes being offline before moving to next modem mode',
         type=int,
         default=10,
     )
@@ -66,6 +68,20 @@ def goto_next_profile(mro: InsysMRO) -> str:
     return next_profile
 
 
+def goto_next_modem_mode(mro: InsysMRO, current_modem_mode: str) -> str:
+    # valid modes: ['normal', 'att', 'verizon']
+
+    if current_modem_mode == 'normal':
+        next_modem_mode = 'att'
+    elif current_modem_mode == 'att':
+        next_modem_mode = 'verizon'
+    else:
+        next_modem_mode = 'normal'
+
+    mro.set_modem_mode(next_modem_mode)
+    return next_modem_mode
+
+
 def main():
     args = _get_arguments()
     log = _init_logging()
@@ -79,20 +95,26 @@ def main():
 
     while True:
         cell_info = mro.get_cellular_info()
-        curr_profile = mro.current_profile()
+        # curr_profile = mro.current_profile()
+        curr_modem_mode = mro.current_modem_mode()
         connection_state = cell_info.get('state', 'Not in returned dict')
         if connection_state != 'Online':
-            offline_minutes += 2
             log.warning(
-                f'OFFLINE. Cellular state: [{cell_info}], with profile [{curr_profile}], '
+                f'OFFLINE. Cellular state: [{cell_info}], with mode [{curr_modem_mode}], '
                 f'minutes offline: {offline_minutes}', )
             if offline_minutes >= max_minutes_offline:
                 offline_minutes = 0
-                new_profile = goto_next_profile(mro)
+                new_profile = goto_next_modem_mode(mro, curr_modem_mode)
                 log.info(f'Changed to profile {new_profile}')
+            offline_minutes += 2
         else:
             offline_minutes = 0
-            log.info(f'ONLINE. Cellular state: [{cell_info}], using profile [{curr_profile}]')
+            log.info(
+                f'ONLINE. Cellular state: [{cell_info}], using modem mode [{curr_modem_mode}]',
+            )
+        dt = datetime.datetime.now(datetime.timezone.utc).strftime(TIME_FMT)
+        with open('log.csv', 'a') as outp:
+            outp.write(f'{dt};{connection_state};{curr_modem_mode};{cell_info}')
         time.sleep(120)
 
 

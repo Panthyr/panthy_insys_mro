@@ -8,4 +8,4 @@ Example code:
 
 >>> from panthyr_insys_mro import insys_mro
 
->>> mro = insys_mro.InsysMRO()
+>>> mro = insys_mro.InsysMRO(username='xxx', password='yyy')
