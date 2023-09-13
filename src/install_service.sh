@@ -22,15 +22,17 @@ StandardOutput=append:/home/panthyr/data/logs/service_mro_watcher_stdout.log
 StandardError=append:/home/panthyr/data/logs/service_mro_watcher_stderr.log
 Restart=always
 RestartSec=300s
-[Install
+[Install]
 WantedBy=multi-user.target
-Alias=p_worker
+Alias=mro_watcher
 EOF
 
 chmod 644 $FILENAME
 
 echo "Created service file $FILENAME"
+echo "Edit service file to add username/pw"
 
+vi $FILENAME
 systemctl daemon-reload && systemctl enable mro_watcher.service && systemctl start mro_watcher.service
 
 echo "Status: "
