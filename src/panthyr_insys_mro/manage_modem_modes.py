@@ -49,7 +49,7 @@ def _init_logging() -> logging.Logger:
         level=logging.INFO,
         format=LOG_FMT,
         handlers=[
-            logging.FileHandler(filename='mro_log.log'),
+            logging.FileHandler(filename='/home/panthyr/data/logs/mro_log.log'),
             logging.StreamHandler(sys.stdout),
         ],
     )
@@ -124,7 +124,7 @@ def main():
                 f'ONLINE. Cellular state: [{cell_info}], using modem mode [{curr_modem_mode}]', )
         mro.logout()
         dt = datetime.datetime.now(datetime.timezone.utc).strftime(TIME_FMT)
-        with open('log.csv', 'a') as outp:
+        with open('/home/panthyr/data/log/mro_log.csv', 'a') as outp:
             outp.write(f'{dt};{connection_state};{curr_modem_mode};{cell_info}\n')
         time.sleep(120)
 
