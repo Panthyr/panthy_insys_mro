@@ -125,7 +125,7 @@ def main():
         mro.logout()
         dt = datetime.datetime.now(datetime.timezone.utc).strftime(TIME_FMT)
         with open('log.csv', 'a') as outp:
-            outp.write(f'{dt};{connection_state};{curr_modem_mode};{cell_info}')
+            outp.write(f'{dt};{connection_state};{curr_modem_mode};{cell_info}\n')
         time.sleep(120)
 
 
