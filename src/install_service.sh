@@ -16,7 +16,7 @@ ConditionPathExists=/home/panthyr/.local/bin/mro_watcher
 WorkingDirectory=/home/panthyr
 Type=simple
 User=panthyr
-ExecStart=/bin/bash -c '/home/panthyr/.local/bin/mro_watcher'
+ExecStart=/bin/bash -c '/home/panthyr/.local/bin/mro_watcher IP USERNAME PASSWORD MINUTES'
 # append only works starting at systemd 240
 StandardOutput=append:/home/panthyr/data/logs/service_mro_watcher_stdout.log
 StandardError=append:/home/panthyr/data/logs/service_mro_watcher_stderr.log
@@ -30,7 +30,11 @@ EOF
 chmod 644 $FILENAME
 
 echo "Created service file $FILENAME"
-echo "Edit service file to add username/pw"
+echo ""
+echo "Press any key to edit service file to add username/pw..."
+echo ""
+echo ""
+read enter
 
 vi $FILENAME
 systemctl daemon-reload && systemctl enable mro_watcher.service && systemctl start mro_watcher.service

@@ -124,7 +124,7 @@ def main():
                 f'ONLINE. Cellular state: [{cell_info}], using modem mode [{curr_modem_mode}]', )
         mro.logout()
         dt = datetime.datetime.now(datetime.timezone.utc).strftime(TIME_FMT)
-        with open('/home/panthyr/data/log/mro_log.csv', 'a') as outp:
+        with open('/home/panthyr/data/logs/mro_log.csv', 'a') as outp:
             outp.write(f'{dt};{connection_state};{curr_modem_mode};{cell_info}\n')
         time.sleep(120)
 
