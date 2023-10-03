@@ -107,6 +107,7 @@ def main():
             continue
 
         if connection_state != 'Online':
+            offline_minutes += 2
             log.warning(
                 f'OFFLINE. Cellular state: [{cell_info}], with mode [{curr_modem_mode}], '
                 f'minutes offline: {offline_minutes}', )
@@ -117,7 +118,6 @@ def main():
                     log.info(f'Changed to profile {new_profile}')
                 except KeyError:
                     log.info('Changing modes not supported.')
-            offline_minutes += 2
         else:
             offline_minutes = 0
             log.info(
