@@ -235,6 +235,7 @@ class InsysMRO():
             ['provider_name', 'provider_name'],
             ['used_net', 'connection'],
             ['cell_id', 'cell_id'],
+            ['location_id', 'LAC_hex'],
             ['signal', 'signal_strength'],
             ['RSSI', 'RSSI'],
             ['sim_state', 'sim_state'],
